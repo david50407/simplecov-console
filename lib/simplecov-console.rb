@@ -2,9 +2,6 @@ require 'hirb'
 require 'ansi/code'
 
 class SimpleCov::Formatter::Console
-
-  VERSION = File.new(File.join(File.expand_path(File.dirname(__FILE__)), "../VERSION")).read.strip
-
   def format(result)
 
     root = nil
@@ -110,3 +107,6 @@ class SimpleCov::Formatter::Console
   end
 
 end
+
+$LOAD_PATH.unshift(File.join(File.dirname(__FILE__)))
+require 'simplecov-console/version'
