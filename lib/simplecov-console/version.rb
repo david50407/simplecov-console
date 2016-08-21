@@ -1,7 +1,7 @@
 module SimpleCov
   module Formatter
     class Console
-      VERSION = '0.3.0'
+      VERSION = '0.4.0'
 
       def VERSION.to_a
         split('.').map(&:to_i)
