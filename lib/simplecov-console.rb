@@ -3,109 +3,80 @@ require 'ansi/code'
 
 class SimpleCov::Formatter::Console
   def format(result)
-
-    root = nil
-    if Module.const_defined? :ROOT then
-      root = ROOT
-    elsif Module.const_defined? :Rails then
-      root = Rails.root.to_s
-    elsif ENV["BUNDLE_GEMFILE"] then
-      root = File.dirname(ENV["BUNDLE_GEMFILE"])
-    else
-      root = Dir.pwd
-    end
-
     puts
-    puts "COVERAGE: #{colorize(pct(result))} -- #{result.covered_lines}/#{result.total_lines} lines in #{result.files.size} files"
+    puts "COVERAGE: #{ colorize_percentage(result.covered_percent) } -- #{ covered_loc(result) } in #{ result.source_files.size } files"
     puts
 
-    if root.nil? then
-      return
-    end
+    files = order_files(result.source_files)
 
-    files = result.files.sort{ |a,b| a.covered_percent <=> b.covered_percent }
-
-    covered_files = 0
-    files.select!{ |file|
-      if file.covered_percent == 100 then
-        covered_files += 1
-        false
-      else
-        true
+    full_covered_files = []
+    files.select! do |file|
+      if file.covered_percent == 100
+        full_covered_files << file
+        break false
       end
-    }
-
-    if files.nil? or files.empty? then
-      return
+      true
     end
+
+    return if files.nil? || files.empty?
 
     table = files.map do |f|
-      { :coverage => pct(f),
+      { :coverage => format_percentage(f.covered_percent),
         :lines => f.lines_of_code,
-        :file => f.filename.gsub(root + "/", ''),
+        :file => f.filename.gsub(SimpleCov.root, '.').gsub('./', ''),
         :missed => f.missed_lines.count,
-        :missing => missed(f.missed_lines).join(", ") }
+        :missing => group_missed_lines(f.missed_lines).join(", ") }
     end
 
-    if table.size > 15 then
+    if table.size > 15
       puts "showing bottom (worst) 15 of #{table.size} files"
-      table = table.slice(0, 15)
+      table = table.take(15)
     end
 
-    s = Hirb::Helpers::Table.render(table).split(/\n/)
-    s.pop
-    puts s.join("\n").gsub(/\d+\.\d+%/) { |m| colorize(m) }
-
-    if covered_files > 0 then
-      puts "#{covered_files} file(s) with 100% coverage not shown"
-    end
-
+    puts Hirb::Helpers::Table.render(table, description: false).gsub(/([ \d.]{6})%/) { |_| colorize_percentage($1.to_f) }
+    puts "#{ full_covered_files.count } file(s) with 100% coverage not shown" if full_covered_files.count > 0
   end
 
-  def missed(missed_lines)
-    groups = {}
-    base = nil
-    previous = nil
-    missed_lines.each do |src|
-      ln = src.line_number
-      if base && previous && (ln - 1) == previous
-        groups[base] += 1
-        previous = ln
+  def group_missed_lines(missed_lines)
+    groups = []
+    missed_lines.each do |line|
+      line_number = line.line_number
+      if groups.last && groups.last[1] + 1 == line_number
+        groups.last[1] = line_number
       else
-        base = ln
-        groups[base] = 0
-        previous = base
+        groups << [line_number, line_number]
       end
     end
 
-    group_str = []
-    groups.map do |base, v|
-      if v > 0
-        group_str << "#{base}-#{base + v}"
-      else
-        group_str << "#{base}"
-      end
+    groups.map do |from, to|
+      from == to ? "#{from}" :  "#{from}-#{to}"
     end
-
-    group_str
   end
 
-  def pct(obj)
-    sprintf("%6.2f%%", obj.covered_percent)
+  private
+
+  def order_files(files)
+    files.sort{ |a,b| a.covered_percent <=> b.covered_percent }
   end
 
-  def colorize(s)
-    s =~ /([\d.]+)/
-    n = $1.to_f
-    if n >= 90 then
-      ANSI.green { s }
-    elsif n >= 80 then
-      ANSI.yellow { s }
+  def covered_loc(result)
+    "#{ result.covered_lines } / #{ result.total_lines } LOC coverd"
+  end
+
+  def colorize_percentage(val)
+    case
+    when val >= 90
+      ANSI.green { format_percentage(val) }
+    when val >= 80
+      ANSI.yellow { format_percentage(val) }
     else
-      ANSI.red { s }
+      ANSI.red { format_percentage(val) }
     end
   end
 
+  def format_percentage(val)
+    "%6.2f%%" % [val]
+  end
 end
 
 $LOAD_PATH.unshift(File.join(File.dirname(__FILE__)))
