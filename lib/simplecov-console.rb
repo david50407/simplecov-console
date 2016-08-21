@@ -2,6 +2,15 @@ require 'hirb'
 require 'ansi/code'
 
 class SimpleCov::Formatter::Console
+  @@configures = {
+    order_method: ->(files) { files.sort{ |a,b| a.covered_percent <=> b.covered_percent } },
+    limit: 15
+  }
+
+  def self.config(options = {})
+    @@configures.merge! options
+  end
+
   def format(result)
     puts
     puts "COVERAGE: #{ colorize_percentage(result.covered_percent) } -- #{ covered_loc(result) } in #{ result.source_files.size } files"
@@ -28,9 +37,9 @@ class SimpleCov::Formatter::Console
         :missing => group_missed_lines(f.missed_lines).join(", ") }
     end
 
-    if table.size > 15
-      puts "showing bottom (worst) 15 of #{table.size} files"
-      table = table.take(15)
+    if @@configures[:limit] && table.size > @@configures[:limit]
+      puts "showing top #{ @@configures[:limit] } of #{ table.size } files"
+      table = table.take(@@configures[:limit])
     end
 
     puts Hirb::Helpers::Table.render(table, description: false).gsub(/([ \d.]{6})%/) { |_| colorize_percentage($1.to_f) }
@@ -56,11 +65,11 @@ class SimpleCov::Formatter::Console
   private
 
   def order_files(files)
-    files.sort{ |a,b| a.covered_percent <=> b.covered_percent }
+    @@configures[:order_method].call files
   end
 
   def covered_loc(result)
-    "#{ result.covered_lines } / #{ result.total_lines } LOC coverd"
+    "#{ result.covered_lines } / #{ result.total_lines } LOC covered"
   end
 
   def colorize_percentage(val)

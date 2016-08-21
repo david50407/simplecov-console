@@ -15,13 +15,19 @@ SimpleCov.formatter = SimpleCov::Formatter::MultiFormatter[
   SimpleCov::Formatter::HTMLFormatter,
   SimpleCov::Formatter::Console,
 ]
+
+# Configure
+SimpleCov::Formatter::Console.config({
+  limit: 20, # Top 20 results, default 15 (nil for unlimited)
+  order_method: ->(files) { files.sort{ |a,b| a.covered_percent <=> b.covered_percent } } # Ordering method, see SimpleCov API document for more informations
+})
 ```
 
 Example output:
 ```
 COVERAGE:  82.34% -- 2345/2848 lines in 111 files
 
-showing bottom (worst) 15 of 69 files
+showing top 15 of 69 files
 +----------+--------------------------------------------+-------+--------+---------------------------------------------+
 | coverage | file                                       | lines | missed | missing                                     |
 +----------+--------------------------------------------+-------+--------+---------------------------------------------+
